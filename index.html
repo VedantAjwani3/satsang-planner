@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Satsang Planner</title>
+<style>
+body { font-family: Arial; padding: 20px; }
+button { padding: 10px; margin: 5px; }
+table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+td, th { border: 1px solid black; padding: 8px; text-align: center; }
+</style>
+</head>
+
+<body>
+
+<h2>🕉️ Satsang Planner</h2>
+
+Month: <input type="number" id="month" value="4">
+Year: <input type="number" id="year" value="2026">
+
+<br><br>
+
+<button onclick="generate()">Generate Schedule</button>
+
+<table id="table">
+<thead>
+<tr>
+<th>S.No</th>
+<th>Date</th>
+<th>Time</th>
+<th>Center</th>
+<th>Karta</th>
+<th>Shabad</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<script>
+
+const SHEET_ID = "1EB9C_6xWe_QXzoDR8XT2JSODPafO0bQSR7PFmjv30i4";
+
+async function fetchData(sheet) {
+  let url = `https://opensheet.elk.sh/${SHEET_ID}/${sheet}`;
+  let res = await fetch(url);
+  return await res.json();
+}
+
+function getSundays(month, year) {
+    let dates = [];
+    let d = new Date(year, month-1, 1);
+
+    while (d.getMonth() === month-1) {
+        if (d.getDay() === 0) dates.push(new Date(d));
+        d.setDate(d.getDate() + 1);
+    }
+
+    if (dates.length >= 4) dates.splice(3,1);
+    return dates;
+}
+
+async function generate() {
+
+    let kartaData = await fetchData("KARTA_BANI");
+    let centerData = await fetchData("CENTERS");
+
+    let kartaMap = {};
+    kartaData.forEach(row => {
+        if (!kartaMap[row.Karta_Name]) {
+            kartaMap[row.Karta_Name] = [];
+        }
+        kartaMap[row.Karta_Name].push(row.Shabad);
+    });
+
+    let kartas = Object.keys(kartaMap);
+    let centers = centerData.map(c => c.Center_Name);
+
+    let sundays = getSundays(
+        document.getElementById("month").value,
+        document.getElementById("year").value
+    );
+
+    let tbody = document.querySelector("#table tbody");
+    tbody.innerHTML = "";
+
+    sundays.forEach((d, i) => {
+        let karta = kartas[i % kartas.length];
+        let baniList = kartaMap[karta];
+        let bani = baniList[Math.floor(Math.random()*baniList.length)];
+        let center = centers[Math.floor(Math.random()*centers.length)];
+
+        let row = `<tr>
+        <td>${i+1}</td>
+        <td>${d.toLocaleDateString()}</td>
+        <td>9:30 AM</td>
+        <td>${center}</td>
+        <td>${karta}</td>
+        <td>${bani}</td>
+        </tr>`;
+
+        tbody.innerHTML += row;
+    });
+}
+
+</script>
+
+</body>
+</html>
