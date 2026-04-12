@@ -3,12 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <title>Satsang Planner</title>
+
 <style>
 body { font-family: Arial; padding: 20px; }
 button { padding: 10px; margin: 5px; }
 table { border-collapse: collapse; width: 100%; margin-top: 20px; }
 td, th { border: 1px solid black; padding: 8px; text-align: center; }
+#status { margin-top: 10px; font-weight: bold; }
 </style>
+
 </head>
 
 <body>
@@ -63,7 +66,9 @@ function getSundays(month, year) {
         d.setDate(d.getDate() + 1);
     }
 
+    // Remove 4th Sunday
     if (dates.length >= 4) dates.splice(3,1);
+
     return dates;
 }
 
@@ -74,37 +79,62 @@ async function generate() {
     let kartaData = await fetchData("KARTA_BANI");
     let centerData = await fetchData("CENTERS");
 
-    if (kartaData.length === 0 || centerData.length === 0) {
+    console.log("KARTA DATA:", kartaData);
+    console.log("CENTER DATA:", centerData);
+
+    if (!kartaData.length || !centerData.length) {
         document.getElementById("status").innerText = "❌ Data not found. Check sheet names.";
         return;
     }
 
-    document.getElementById("status").innerText = "✅ Data loaded";
+    let tbody = document.querySelector("#table tbody");
+    tbody.innerHTML = "";
 
     let kartaMap = {};
+
+    // Clean + map data
     kartaData.forEach(row => {
-        if (!kartaMap[row.Karta_Name]) {
-            kartaMap[row.Karta_Name] = [];
+
+        let name = (row.Karta_Name || "").trim();
+        let shabad = (row.Shabad || "").trim();
+
+        if (!name || !shabad) return;
+
+        if (!kartaMap[name]) {
+            kartaMap[name] = [];
         }
-        kartaMap[row.Karta_Name].push(row.Shabad);
+
+        kartaMap[name].push(shabad);
     });
 
     let kartas = Object.keys(kartaMap);
-    let centers = centerData.map(c => c.Center_Name);
+
+    let centers = centerData
+        .map(c => (c.Center_Name || "").trim())
+        .filter(c => c !== "");
+
+    console.log("Kartas:", kartas);
+    console.log("Centers:", centers);
+
+    if (kartas.length === 0 || centers.length === 0) {
+        document.getElementById("status").innerText = "❌ Data format issue in sheet";
+        return;
+    }
 
     let sundays = getSundays(
         document.getElementById("month").value,
         document.getElementById("year").value
     );
 
-    let tbody = document.querySelector("#table tbody");
-    tbody.innerHTML = "";
-
     sundays.forEach((d, i) => {
+
         let karta = kartas[i % kartas.length];
         let baniList = kartaMap[karta];
-        let bani = baniList[Math.floor(Math.random()*baniList.length)];
-        let center = centers[Math.floor(Math.random()*centers.length)];
+
+        if (!baniList || baniList.length === 0) return;
+
+        let bani = baniList[Math.floor(Math.random() * baniList.length)];
+        let center = centers[Math.floor(Math.random() * centers.length)];
 
         let row = `<tr>
         <td>${i+1}</td>
@@ -117,11 +147,22 @@ async function generate() {
 
         tbody.innerHTML += row;
     });
+
+    if (tbody.innerHTML === "") {
+        document.getElementById("status").innerText = "⚠️ Data loaded but no rows generated (check column names)";
+    } else {
+        document.getElementById("status").innerText = "✅ Schedule Generated";
+    }
 }
 
 function downloadExcel() {
+
     let table = document.getElementById("table").outerHTML;
-    let blob = new Blob([table], { type: "application/vnd.ms-excel" });
+
+    let blob = new Blob([table], {
+        type: "application/vnd.ms-excel"
+    });
+
     let link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = "Satsang_Planner.xls";
