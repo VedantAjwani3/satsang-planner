@@ -5,11 +5,57 @@
 <title>Satsang Planner</title>
 
 <style>
-body { font-family: Arial; padding: 20px; }
-button { padding: 10px; margin: 5px; }
-table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-td, th { border: 1px solid black; padding: 8px; text-align: center; }
-#status { margin-top: 10px; font-weight: bold; }
+body {
+    font-family: Arial;
+    padding: 20px;
+    background: #f5f5f5;
+}
+
+h2 {
+    text-align: center;
+}
+
+.controls {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 10px 15px;
+    margin: 5px;
+    cursor: pointer;
+    border-radius: 5px;
+    border: none;
+    background-color: #4CAF50;
+    color: white;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background: white;
+}
+
+td, th {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: center;
+}
+
+th {
+    background-color: #4CAF50;
+    color: white;
+}
+
+#status {
+    text-align: center;
+    margin: 10px;
+    font-weight: bold;
+}
 </style>
 
 </head>
@@ -18,13 +64,13 @@ td, th { border: 1px solid black; padding: 8px; text-align: center; }
 
 <h2>🕉️ Satsang Planner</h2>
 
+<div class="controls">
 Month: <input type="number" id="month" value="4">
 Year: <input type="number" id="year" value="2026">
-
 <br><br>
-
 <button onclick="generate()">Generate Schedule</button>
 <button onclick="downloadExcel()">Download Excel</button>
+</div>
 
 <p id="status"></p>
 
@@ -51,26 +97,27 @@ Year: <input type="number" id="year" value="2026">
 const SHEET_ID = "1EB9C_6xWe_QXzoDR8XT2JSODPafO0bQSR7PFmjv30i4";
 
 async function fetchData(sheet) {
-  try {
-    let url = `https://opensheet.elk.sh/${SHEET_ID}/${sheet}`;
-    let res = await fetch(url);
-    return await res.json();
-  } catch (e) {
-    document.getElementById("status").innerText = "❌ Error loading data";
-    return [];
-  }
+    try {
+        let url = `https://opensheet.elk.sh/${SHEET_ID}/${sheet}`;
+        let res = await fetch(url);
+        return await res.json();
+    } catch {
+        document.getElementById("status").innerText = "❌ Error loading data";
+        return [];
+    }
 }
 
 function getSundays(month, year) {
     let dates = [];
-    let d = new Date(year, month-1, 1);
+    let d = new Date(year, month - 1, 1);
 
-    while (d.getMonth() === month-1) {
+    while (d.getMonth() === month - 1) {
         if (d.getDay() === 0) dates.push(new Date(d));
         d.setDate(d.getDate() + 1);
     }
 
-    if (dates.length >= 4) dates.splice(3,1); // skip 4th Sunday
+    if (dates.length >= 4) dates.splice(3, 1);
+
     return dates;
 }
 
@@ -82,7 +129,7 @@ async function generate() {
     let centerData = await fetchData("CENTERS");
 
     if (!kartaData.length || !centerData.length) {
-        document.getElementById("status").innerText = "❌ Data not found";
+        document.getElementById("status").innerText = "❌ Data not found. Check sheet names.";
         return;
     }
 
@@ -91,9 +138,8 @@ async function generate() {
 
     let kartaMap = {};
 
-    // Build full karta-bani structure
+    // Build karta map
     kartaData.forEach(row => {
-
         let name = (row.Karta_Name || "").trim();
         if (!name) return;
 
@@ -126,31 +172,50 @@ async function generate() {
         document.getElementById("year").value
     );
 
-    sundays.forEach((d, i) => {
+    let rowCount = 1;
+    let centerHistory = {};
 
-        let karta = kartas[i % kartas.length];
-        let baniList = kartaMap[karta];
+    sundays.forEach(date => {
 
-        let bani = baniList[Math.floor(Math.random() * baniList.length)];
-        let center = centers[Math.floor(Math.random() * centers.length)];
+        // Shuffle kartas for fairness
+        let shuffledKartas = [...kartas].sort(() => 0.5 - Math.random());
 
-        let row = `<tr>
-        <td>${i+1}</td>
-        <td>${d.toLocaleDateString()}</td>
-        <td>9:30 AM</td>
-        <td>${center}</td>
-        <td>${karta}</td>
-        <td>${bani.mobile}</td>
-        <td>${bani.shabad}</td>
-        <td>${bani.guru}</td>
-        <td>${bani.book}</td>
-        <td>${bani.page}</td>
-        </tr>`;
+        centers.forEach((center, i) => {
 
-        tbody.innerHTML += row;
+            let karta = shuffledKartas[i % shuffledKartas.length];
+            let baniList = kartaMap[karta];
+
+            if (!baniList || baniList.length === 0) return;
+
+            let bani = baniList[Math.floor(Math.random() * baniList.length)];
+
+            // Prevent immediate repeat of center for same karta
+            if (centerHistory[karta] === center) {
+                let alt = centers.find(c => c !== center);
+                if (alt) center = alt;
+            }
+
+            centerHistory[karta] = center;
+
+            let row = `<tr>
+            <td>${rowCount++}</td>
+            <td>${date.toLocaleDateString()}</td>
+            <td>9:30 AM</td>
+            <td>${center}</td>
+            <td>${karta}</td>
+            <td>${bani.mobile}</td>
+            <td>${bani.shabad}</td>
+            <td>${bani.guru}</td>
+            <td>${bani.book}</td>
+            <td>${bani.page}</td>
+            </tr>`;
+
+            tbody.innerHTML += row;
+        });
+
     });
 
-    document.getElementById("status").innerText = "✅ Schedule Generated";
+    document.getElementById("status").innerText = "✅ Full Schedule Generated";
 }
 
 function downloadExcel() {
