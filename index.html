@@ -5,33 +5,18 @@
 <title>Satsang Planner</title>
 
 <style>
-body {
-    font-family: Arial;
-    padding: 20px;
-    background: #f5f5f5;
-}
+body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+h2 { text-align: center; }
 
-h2 {
-    text-align: center;
-}
-
-.controls {
-    text-align: center;
-    margin-bottom: 20px;
-}
+.controls { text-align: center; margin-bottom: 20px; }
 
 button {
-    padding: 10px 15px;
+    padding: 10px;
     margin: 5px;
-    cursor: pointer;
-    border-radius: 5px;
-    border: none;
-    background-color: #4CAF50;
+    background: #4CAF50;
     color: white;
-}
-
-button:hover {
-    background-color: #45a049;
+    border: none;
+    border-radius: 5px;
 }
 
 .karta-block {
@@ -42,18 +27,16 @@ button:hover {
 }
 
 .karta-title {
-    font-size: 18px;
-    font-weight: bold;
     background: #4CAF50;
     color: white;
     padding: 8px;
-    border-radius: 5px;
+    font-weight: bold;
 }
 
 table {
     width: 100%;
-    margin-top: 10px;
     border-collapse: collapse;
+    margin-top: 10px;
 }
 
 td, th {
@@ -62,17 +45,10 @@ td, th {
     text-align: center;
 }
 
-th {
-    background: #ddd;
-}
+th { background: #ddd; }
 
-#status {
-    text-align: center;
-    margin: 10px;
-    font-weight: bold;
-}
+#status { text-align: center; font-weight: bold; }
 </style>
-
 </head>
 
 <body>
@@ -80,7 +56,7 @@ th {
 <h2>🕉️ Satsang Planner</h2>
 
 <div class="controls">
-Month: <input type="number" id="month" value="4">
+Month: <input type="number" id="month" value="5">
 Year: <input type="number" id="year" value="2026">
 <br><br>
 <button onclick="generate()">Generate Schedule</button>
@@ -88,7 +64,6 @@ Year: <input type="number" id="year" value="2026">
 </div>
 
 <p id="status"></p>
-
 <div id="output"></div>
 
 <script>
@@ -126,17 +101,19 @@ async function generate() {
 
     let kartaMap = {};
 
+    // Build karta data
     kartaData.forEach(row => {
         let name = (row.Karta_Name || "").trim();
+        if (!name) return;
 
         if (!kartaMap[name]) kartaMap[name] = [];
 
         kartaMap[name].push({
-            shabad: row.Shabad,
-            mobile: row.Mobile,
-            guru: row.Guru,
-            book: row.Book,
-            page: row.Page
+            shabad: row.Shabad || "",
+            mobile: row.Mobile || "",
+            guru: row.Guru || "",
+            book: row.Book || "",
+            page: row.Page || ""
         });
     });
 
@@ -152,28 +129,42 @@ async function generate() {
 
     sundays.forEach(date => {
 
+        // shuffle kartas
         let shuffledKartas = [...kartas].sort(() => 0.5 - Math.random());
 
-        centers.forEach((center, i) => {
+        // assign one karta per center (no repeat per day)
+        let dayAssignments = [];
+
+        for (let i = 0; i < centers.length; i++) {
 
             let karta = shuffledKartas[i % shuffledKartas.length];
-            let baniList = kartaMap[karta];
 
+            // prevent same karta twice same day
+            if (dayAssignments.includes(karta)) {
+                let alt = shuffledKartas.find(k => !dayAssignments.includes(k));
+                if (alt) karta = alt;
+            }
+
+            dayAssignments.push(karta);
+
+            let baniList = kartaMap[karta];
             let bani = baniList[Math.floor(Math.random() * baniList.length)];
 
             if (!schedule[karta]) schedule[karta] = [];
 
             schedule[karta].push({
                 date: date.toLocaleDateString(),
-                center,
-                ...bani
+                center: centers[i],
+                shabad: bani.shabad || "",
+                guru: bani.guru || "",
+                book: bani.book || "",
+                page: bani.page || ""
             });
-
-        });
+        }
 
     });
 
-    // DISPLAY GROUPED
+    // Display grouped
     for (let karta in schedule) {
 
         let block = document.createElement("div");
@@ -208,7 +199,7 @@ async function generate() {
         output.appendChild(block);
     }
 
-    document.getElementById("status").innerText = "✅ Grouped Schedule Generated";
+    document.getElementById("status").innerText = "✅ Clean Schedule Generated";
 }
 
 function downloadExcel() {
