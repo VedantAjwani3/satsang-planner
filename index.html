@@ -7,94 +7,57 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
+body { font-family: 'Segoe UI'; margin:0; background:#f4f7f6; }
 
-body {
-    font-family: 'Segoe UI', sans-serif;
-    margin: 0;
-    background: #f4f7f6;
-}
-
-.header {
-    background: white;
-    text-align: center;
-    padding: 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-.header img { height: 70px; }
+.header { text-align:center; padding:20px; background:white; box-shadow:0 2px 10px rgba(0,0,0,0.1);}
+.header img { height:70px; }
 
 .controls {
-    margin: 20px auto;
-    width: 90%;
-    max-width: 600px;
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+    margin:20px auto;
+    width:90%;
+    max-width:600px;
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    text-align:center;
+    box-shadow:0 3px 12px rgba(0,0,0,0.08);
 }
 
 button {
-    padding: 10px 18px;
-    margin: 5px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    background: #5c7cfa;
-    color: white;
-    font-weight: bold;
+    padding:10px 18px;
+    margin:5px;
+    border-radius:6px;
+    border:none;
+    cursor:pointer;
+    background:#5c7cfa;
+    color:white;
+    font-weight:bold;
 }
 
 .karta-block {
-    margin: 20px auto;
-    width: 95%;
-    background: white;
-    border-radius: 12px;
-    padding: 15px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    margin:20px auto;
+    width:95%;
+    background:white;
+    border-radius:12px;
+    padding:15px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.08);
 }
 
 .karta-title {
-    font-size: 18px;
-    font-weight: bold;
-    color: #34495e;
-    border-left: 5px solid #5c7cfa;
-    padding-left: 10px;
-    margin-bottom: 10px;
+    font-size:18px;
+    font-weight:bold;
+    border-left:5px solid #5c7cfa;
+    padding-left:10px;
 }
 
-.mobile {
-    font-size: 14px;
-    color: #666;
-}
+.mobile { font-size:13px; color:#666; }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
+table { width:100%; border-collapse:collapse; margin-top:10px;}
+th { background:#5c7cfa; color:white; padding:8px;}
+td { border:1px solid #ddd; padding:8px; text-align:center;}
+tr:nth-child(even){background:#f9f9f9;}
 
-th {
-    background: #5c7cfa;
-    color: white;
-    padding: 8px;
-}
-
-td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: center;
-}
-
-tr:nth-child(even) {
-    background: #f8f9fa;
-}
-
-#status {
-    text-align: center;
-    font-weight: bold;
-    margin: 10px;
-}
-
+#status { text-align:center; font-weight:bold; margin:10px; }
 </style>
 </head>
 
@@ -110,221 +73,198 @@ tr:nth-child(even) {
 Month: <input type="number" id="month" value="5">
 Year: <input type="number" id="year" value="2026">
 <br><br>
-<button onclick="generate()">Generate Schedule</button>
-<button onclick="downloadExcel()">Download Excel</button>
-<button onclick="downloadPDF()">Download PDF</button>
+<button onclick="generate()">Generate</button>
+<button onclick="downloadExcel()">Excel</button>
+<button onclick="downloadPDF()">PDF</button>
 </div>
 
 <p id="status"></p>
-
 <div id="output"></div>
 
 <script>
 
 const SHEET_ID = "1EB9C_6xWe_QXzoDR8XT2JSODPafO0bQSR7PFmjv30i4";
 
-async function fetchData(sheet) {
+async function fetchData(sheet){
     let res = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/${sheet}`);
     return await res.json();
 }
 
-function getSundays(month, year) {
-    let dates = [];
-    let d = new Date(year, month - 1, 1);
-
-    while (d.getMonth() === month - 1) {
-        if (d.getDay() === 0) dates.push(new Date(d));
-        d.setDate(d.getDate() + 1);
+function getSundays(month, year){
+    let d=new Date(year,month-1,1), dates=[];
+    while(d.getMonth()==month-1){
+        if(d.getDay()==0) dates.push(new Date(d));
+        d.setDate(d.getDate()+1);
     }
-
-    if (dates.length >= 4) dates.splice(3, 1);
+    if(dates.length>=4) dates.splice(3,1);
     return dates;
 }
 
-async function generate() {
+async function generate(){
 
-    document.getElementById("status").innerText = "Generating smart schedule...";
+document.getElementById("status").innerText="Generating...";
 
-    let kartaData = await fetchData("KARTA_BANI");
-    let centerData = await fetchData("CENTERS");
-    let historyData = await fetchData("HISTORY");
+let kartaData=await fetchData("KARTA_BANI");
+let centerData=await fetchData("CENTERS");
+let historyData=await fetchData("HISTORY");
 
-    let output = document.getElementById("output");
-    output.innerHTML = "";
+let output=document.getElementById("output");
+output.innerHTML="";
 
-    let kartaMap = {};
-    let historyCenterCount = {};
-    let historyBaniCount = {};
+let kartaMap={}, historyCenter={}, historyBani={};
 
-    // Build karta data
-    kartaData.forEach(row => {
-        let name = row.Karta_Name?.trim();
-        if (!kartaMap[name]) kartaMap[name] = [];
-
-        kartaMap[name].push({
-            shabad: row.Shabad || "",
-            guru: row.Guru || "",
-            book: row.Book || "",
-            page: row.Page || "",
-            mobile: row.Mobile || ""
-        });
+// Build karta map
+kartaData.forEach(r=>{
+    let k=r.Karta_Name?.trim();
+    if(!kartaMap[k]) kartaMap[k]=[];
+    kartaMap[k].push({
+        shabad:r.Shabad||"",
+        guru:r.Guru||"",
+        book:r.Book||"",
+        page:r.Page||"",
+        mobile:r.Mobile||""
     });
+});
 
-    // Build history
-    historyData.forEach(row => {
-        let k = row.Karta_Name;
-        let c = row.Center_Name;
-        let s = row.Shabad;
+// Build history
+historyData.forEach(r=>{
+    let k=r.Karta_Name,c=r.Center_Name,s=r.Shabad;
 
-        if (!historyCenterCount[k]) historyCenterCount[k] = {};
-        if (!historyCenterCount[k][c]) historyCenterCount[k][c] = 0;
-        historyCenterCount[k][c]++;
+    if(!historyCenter[k]) historyCenter[k]={};
+    historyCenter[k][c]=(historyCenter[k][c]||0)+1;
 
-        if (!historyBaniCount[k]) historyBaniCount[k] = {};
-        if (!historyBaniCount[k][s]) historyBaniCount[k][s] = 0;
-        historyBaniCount[k][s]++;
-    });
+    if(!historyBani[k]) historyBani[k]={};
+    historyBani[k][s]=(historyBani[k][s]||0)+1;
+});
 
-    let kartas = Object.keys(kartaMap);
-    let centers = centerData.map(c => c.Center_Name).filter(Boolean);
+let kartas=Object.keys(kartaMap);
+let centers=centerData.map(c=>c.Center_Name).filter(Boolean);
+let sundays=getSundays(
+    document.getElementById("month").value,
+    document.getElementById("year").value
+);
 
-    let sundays = getSundays(
-        document.getElementById("month").value,
-        document.getElementById("year").value
-    );
+let schedule={};
 
-    let schedule = {};
+sundays.forEach(date=>{
 
-    sundays.forEach(date => {
+    let availableCenters=[...centers];
+    let shuffledKartas=[...kartas].sort(()=>0.5-Math.random());
 
-        let availableCenters = [...centers];
-        let shuffledKartas = [...kartas].sort(() => 0.5 - Math.random());
+    shuffledKartas.forEach(karta=>{
 
-        shuffledKartas.forEach(karta => {
+        if(availableCenters.length==0) return;
 
-            if (availableCenters.length === 0) return;
+        // CENTER (SMART)
+        let center=availableCenters.sort((a,b)=>{
+            return (historyCenter[karta]?.[a]||0)-(historyCenter[karta]?.[b]||0);
+        })[0];
 
-            // pick least used center
-            let sortedCenters = [...availableCenters].sort((a, b) => {
-                return (historyCenterCount[karta]?.[a] || 0) - (historyCenterCount[karta]?.[b] || 0);
+        availableCenters=availableCenters.filter(c=>c!==center);
+
+        // BANI (SMART CYCLE)
+        if(!schedule[karta]) schedule[karta]=[];
+
+        let used=schedule[karta].map(x=>x.shabad);
+        let baniList=kartaMap[karta];
+
+        let unused=baniList.filter(b=>!used.includes(b.shabad));
+
+        let bani;
+
+        if(unused.length>0){
+            unused.sort((a,b)=>{
+                return (historyBani[karta]?.[a.shabad]||0)-(historyBani[karta]?.[b.shabad]||0);
             });
+            bani=unused[0];
+        }else{
+            bani=baniList.sort((a,b)=>{
+                return (historyBani[karta]?.[a.shabad]||0)-(historyBani[karta]?.[b.shabad]||0);
+            })[0];
+        }
 
-            let center = sortedCenters[0];
-            availableCenters = availableCenters.filter(c => c !== center);
-
-            // pick least used bani
-            let baniList = kartaMap[karta];
-            let sortedBani = [...baniList].sort((a, b) => {
-                return (historyBaniCount[karta]?.[a.shabad] || 0) - (historyBaniCount[karta]?.[b.shabad] || 0);
-            });
-
-            let bani = sortedBani[0];
-
-            if (!schedule[karta]) schedule[karta] = [];
-
-            schedule[karta].push({
-                date: date.toLocaleDateString(),
-                center,
-                shabad: bani.shabad,
-                guru: bani.guru,
-                book: bani.book,
-                page: bani.page,
-                mobile: bani.mobile
-            });
-
+        schedule[karta].push({
+            date:date.toLocaleDateString(),
+            center,
+            ...bani
         });
 
     });
 
-    // display
-    for (let karta in schedule) {
+});
 
-        let mobile = schedule[karta][0].mobile || "";
+// DISPLAY
+for(let k in schedule){
 
-        let block = document.createElement("div");
-        block.className = "karta-block";
+    let mobile=schedule[k][0].mobile||"";
 
-        let title = `
-        <div class="karta-title">
-            ${karta}
-            <div class="mobile">📞 ${mobile}</div>
-        </div>`;
+    let block=document.createElement("div");
+    block.className="karta-block";
 
-        let table = `<table>
-        <tr>
-        <th>Date</th>
-        <th>Center</th>
-        <th>Shabad</th>
-        <th>Guru</th>
-        <th>Book</th>
-        <th>Page</th>
+    let html=`<div class="karta-title">${k}<div class="mobile">📞 ${mobile}</div></div>
+    <table>
+    <tr><th>Date</th><th>Center</th><th>Shabad</th><th>Guru</th><th>Book</th><th>Page</th></tr>`;
+
+    schedule[k].forEach(r=>{
+        html+=`<tr>
+        <td>${r.date}</td>
+        <td>${r.center}</td>
+        <td>${r.shabad}</td>
+        <td>${r.guru}</td>
+        <td>${r.book}</td>
+        <td>${r.page}</td>
         </tr>`;
+    });
 
-        schedule[karta].forEach(row => {
-            table += `<tr>
-            <td>${row.date}</td>
-            <td>${row.center}</td>
-            <td>${row.shabad}</td>
-            <td>${row.guru}</td>
-            <td>${row.book}</td>
-            <td>${row.page}</td>
-            </tr>`;
-        });
+    html+="</table>";
+    block.innerHTML=html;
+    output.appendChild(block);
+}
 
-        table += "</table>";
+document.getElementById("status").innerText="✅ Smart Schedule Generated";
 
-        block.innerHTML = title + table;
-        output.appendChild(block);
-    }
-
-    document.getElementById("status").innerText = "✅ Smart Schedule Generated";
 }
 
 // PDF
-function downloadPDF() {
-    let element = document.getElementById("output");
-    html2pdf().from(element).save("Satsang_Planner.pdf");
+function downloadPDF(){
+    html2pdf().from(document.getElementById("output")).save("Satsang.pdf");
 }
 
 // Excel
-function downloadExcel() {
+function downloadExcel(){
 
-    let html = `<table border="1">
-    <tr style="background:#5c7cfa;color:white;">
-    <th>Karta</th><th>Date</th><th>Center</th><th>Shabad</th><th>Guru</th><th>Book</th><th>Page</th>
-    </tr>`;
+let html=`<table border="1">
+<tr style="background:#5c7cfa;color:white;">
+<th>Karta</th><th>Date</th><th>Center</th><th>Shabad</th><th>Guru</th><th>Book</th><th>Page</th>
+</tr>`;
 
-    document.querySelectorAll(".karta-block").forEach(block => {
+document.querySelectorAll(".karta-block").forEach(b=>{
+    let k=b.querySelector(".karta-title").innerText;
 
-        let karta = block.querySelector(".karta-title").innerText;
+    b.querySelectorAll("tr").forEach((r,i)=>{
+        if(i==0) return;
+        let c=r.querySelectorAll("td");
+        if(c.length==0) return;
 
-        block.querySelectorAll("tr").forEach((row, i) => {
-            if (i === 0) return;
-
-            let cells = row.querySelectorAll("td");
-            if (cells.length === 0) return;
-
-            html += `<tr>
-            <td>${karta}</td>
-            <td>${cells[0].innerText}</td>
-            <td>${cells[1].innerText}</td>
-            <td>${cells[2].innerText}</td>
-            <td>${cells[3].innerText}</td>
-            <td>${cells[4].innerText}</td>
-            <td>${cells[5].innerText}</td>
-            </tr>`;
-        });
-
+        html+=`<tr>
+        <td>${k}</td>
+        <td>${c[0].innerText}</td>
+        <td>${c[1].innerText}</td>
+        <td>${c[2].innerText}</td>
+        <td>${c[3].innerText}</td>
+        <td>${c[4].innerText}</td>
+        <td>${c[5].innerText}</td>
+        </tr>`;
     });
+});
 
-    html += "</table>";
+html+="</table>";
 
-    let blob = new Blob([html], { type: "application/vnd.ms-excel" });
-
-    let link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "Satsang_Planner.xls";
-    link.click();
+let blob=new Blob([html],{type:"application/vnd.ms-excel"});
+let link=document.createElement("a");
+link.href=URL.createObjectURL(blob);
+link.download="Satsang.xls";
+link.click();
 }
 
 </script>
