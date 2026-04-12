@@ -34,21 +34,36 @@ button:hover {
     background-color: #45a049;
 }
 
-table {
-    border-collapse: collapse;
-    width: 100%;
+.karta-block {
     background: white;
+    margin: 15px 0;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.karta-title {
+    font-size: 18px;
+    font-weight: bold;
+    background: #4CAF50;
+    color: white;
+    padding: 8px;
+    border-radius: 5px;
+}
+
+table {
+    width: 100%;
+    margin-top: 10px;
+    border-collapse: collapse;
 }
 
 td, th {
     border: 1px solid #ccc;
-    padding: 8px;
+    padding: 6px;
     text-align: center;
 }
 
 th {
-    background-color: #4CAF50;
-    color: white;
+    background: #ddd;
 }
 
 #status {
@@ -74,37 +89,16 @@ Year: <input type="number" id="year" value="2026">
 
 <p id="status"></p>
 
-<table id="table">
-<thead>
-<tr>
-<th>S.No</th>
-<th>Date</th>
-<th>Time</th>
-<th>Center</th>
-<th>Karta</th>
-<th>Mobile</th>
-<th>Shabad</th>
-<th>Guru</th>
-<th>Book</th>
-<th>Page</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
+<div id="output"></div>
 
 <script>
 
 const SHEET_ID = "1EB9C_6xWe_QXzoDR8XT2JSODPafO0bQSR7PFmjv30i4";
 
 async function fetchData(sheet) {
-    try {
-        let url = `https://opensheet.elk.sh/${SHEET_ID}/${sheet}`;
-        let res = await fetch(url);
-        return await res.json();
-    } catch {
-        document.getElementById("status").innerText = "❌ Error loading data";
-        return [];
-    }
+    let url = `https://opensheet.elk.sh/${SHEET_ID}/${sheet}`;
+    let res = await fetch(url);
+    return await res.json();
 }
 
 function getSundays(month, year) {
@@ -117,67 +111,47 @@ function getSundays(month, year) {
     }
 
     if (dates.length >= 4) dates.splice(3, 1);
-
     return dates;
 }
 
 async function generate() {
 
-    document.getElementById("status").innerText = "Loading data...";
+    document.getElementById("status").innerText = "Generating...";
 
     let kartaData = await fetchData("KARTA_BANI");
     let centerData = await fetchData("CENTERS");
 
-    if (!kartaData.length || !centerData.length) {
-        document.getElementById("status").innerText = "❌ Data not found. Check sheet names.";
-        return;
-    }
-
-    let tbody = document.querySelector("#table tbody");
-    tbody.innerHTML = "";
+    let output = document.getElementById("output");
+    output.innerHTML = "";
 
     let kartaMap = {};
 
-    // Build karta map
     kartaData.forEach(row => {
         let name = (row.Karta_Name || "").trim();
-        if (!name) return;
 
-        if (!kartaMap[name]) {
-            kartaMap[name] = [];
-        }
+        if (!kartaMap[name]) kartaMap[name] = [];
 
         kartaMap[name].push({
-            shabad: (row.Shabad || "").trim(),
-            mobile: (row.Mobile || "").trim(),
-            guru: (row.Guru || "").trim(),
-            book: (row.Book || "").trim(),
-            page: (row.Page || "").trim()
+            shabad: row.Shabad,
+            mobile: row.Mobile,
+            guru: row.Guru,
+            book: row.Book,
+            page: row.Page
         });
     });
 
     let kartas = Object.keys(kartaMap);
-
-    let centers = centerData
-        .map(c => (c.Center_Name || "").trim())
-        .filter(c => c !== "");
-
-    if (kartas.length === 0 || centers.length === 0) {
-        document.getElementById("status").innerText = "❌ Data format issue";
-        return;
-    }
+    let centers = centerData.map(c => c.Center_Name).filter(Boolean);
 
     let sundays = getSundays(
         document.getElementById("month").value,
         document.getElementById("year").value
     );
 
-    let rowCount = 1;
-    let centerHistory = {};
+    let schedule = {};
 
     sundays.forEach(date => {
 
-        // Shuffle kartas for fairness
         let shuffledKartas = [...kartas].sort(() => 0.5 - Math.random());
 
         centers.forEach((center, i) => {
@@ -185,49 +159,68 @@ async function generate() {
             let karta = shuffledKartas[i % shuffledKartas.length];
             let baniList = kartaMap[karta];
 
-            if (!baniList || baniList.length === 0) return;
-
             let bani = baniList[Math.floor(Math.random() * baniList.length)];
 
-            // Prevent immediate repeat of center for same karta
-            if (centerHistory[karta] === center) {
-                let alt = centers.find(c => c !== center);
-                if (alt) center = alt;
-            }
+            if (!schedule[karta]) schedule[karta] = [];
 
-            centerHistory[karta] = center;
+            schedule[karta].push({
+                date: date.toLocaleDateString(),
+                center,
+                ...bani
+            });
 
-            let row = `<tr>
-            <td>${rowCount++}</td>
-            <td>${date.toLocaleDateString()}</td>
-            <td>9:30 AM</td>
-            <td>${center}</td>
-            <td>${karta}</td>
-            <td>${bani.mobile}</td>
-            <td>${bani.shabad}</td>
-            <td>${bani.guru}</td>
-            <td>${bani.book}</td>
-            <td>${bani.page}</td>
-            </tr>`;
-
-            tbody.innerHTML += row;
         });
 
     });
 
-    document.getElementById("status").innerText = "✅ Full Schedule Generated";
+    // DISPLAY GROUPED
+    for (let karta in schedule) {
+
+        let block = document.createElement("div");
+        block.className = "karta-block";
+
+        let title = `<div class="karta-title">${karta}</div>`;
+
+        let table = `<table>
+        <tr>
+        <th>Date</th>
+        <th>Center</th>
+        <th>Shabad</th>
+        <th>Guru</th>
+        <th>Book</th>
+        <th>Page</th>
+        </tr>`;
+
+        schedule[karta].forEach(row => {
+            table += `<tr>
+            <td>${row.date}</td>
+            <td>${row.center}</td>
+            <td>${row.shabad}</td>
+            <td>${row.guru}</td>
+            <td>${row.book}</td>
+            <td>${row.page}</td>
+            </tr>`;
+        });
+
+        table += "</table>";
+
+        block.innerHTML = title + table;
+        output.appendChild(block);
+    }
+
+    document.getElementById("status").innerText = "✅ Grouped Schedule Generated";
 }
 
 function downloadExcel() {
-    let table = document.getElementById("table").outerHTML;
+    let html = document.getElementById("output").innerHTML;
 
-    let blob = new Blob([table], {
+    let blob = new Blob([html], {
         type: "application/vnd.ms-excel"
     });
 
     let link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "Satsang_Planner.xls";
+    link.download = "Satsang_Grouped.xls";
     link.click();
 }
 
