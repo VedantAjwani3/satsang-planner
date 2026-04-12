@@ -21,6 +21,9 @@ Year: <input type="number" id="year" value="2026">
 <br><br>
 
 <button onclick="generate()">Generate Schedule</button>
+<button onclick="downloadExcel()">Download Excel</button>
+
+<p id="status"></p>
 
 <table id="table">
 <thead>
@@ -41,9 +44,14 @@ Year: <input type="number" id="year" value="2026">
 const SHEET_ID = "1EB9C_6xWe_QXzoDR8XT2JSODPafO0bQSR7PFmjv30i4";
 
 async function fetchData(sheet) {
-  let url = `https://opensheet.elk.sh/${SHEET_ID}/${sheet}`;
-  let res = await fetch(url);
-  return await res.json();
+  try {
+    let url = `https://opensheet.elk.sh/${SHEET_ID}/${sheet}`;
+    let res = await fetch(url);
+    return await res.json();
+  } catch (e) {
+    document.getElementById("status").innerText = "❌ Error loading data";
+    return [];
+  }
 }
 
 function getSundays(month, year) {
@@ -61,8 +69,17 @@ function getSundays(month, year) {
 
 async function generate() {
 
+    document.getElementById("status").innerText = "Loading data...";
+
     let kartaData = await fetchData("KARTA_BANI");
     let centerData = await fetchData("CENTERS");
+
+    if (kartaData.length === 0 || centerData.length === 0) {
+        document.getElementById("status").innerText = "❌ Data not found. Check sheet names.";
+        return;
+    }
+
+    document.getElementById("status").innerText = "✅ Data loaded";
 
     let kartaMap = {};
     kartaData.forEach(row => {
@@ -100,6 +117,15 @@ async function generate() {
 
         tbody.innerHTML += row;
     });
+}
+
+function downloadExcel() {
+    let table = document.getElementById("table").outerHTML;
+    let blob = new Blob([table], { type: "application/vnd.ms-excel" });
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "Satsang_Planner.xls";
+    link.click();
 }
 
 </script>
