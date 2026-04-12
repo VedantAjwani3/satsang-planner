@@ -6,74 +6,85 @@
 
 <style>
 
+/* GENERAL */
 body {
-    font-family: 'Segoe UI', Arial;
+    font-family: 'Segoe UI', sans-serif;
     margin: 0;
-    background: #f4f7f6;
+    background: linear-gradient(to right, #eef2f3, #f9f9f9);
 }
 
 /* HEADER */
 .header {
-    background: #ffffff;
+    background: white;
     text-align: center;
-    padding: 15px;
-    border-bottom: 2px solid #ddd;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .header img {
-    height: 60px;
+    height: 70px;
 }
 
 .header h1 {
-    margin: 5px;
-    font-size: 22px;
-    color: #333;
+    margin: 8px 0 0;
+    color: #2c3e50;
+}
+
+.header p {
+    margin: 3px;
+    color: #777;
 }
 
 /* CONTROLS */
 .controls {
+    margin: 20px auto;
+    width: 90%;
+    max-width: 600px;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
     text-align: center;
-    padding: 15px;
-    background: #ffffff;
-    margin: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
 }
 
 input {
-    padding: 6px;
+    padding: 8px;
     margin: 5px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
 }
 
 button {
-    padding: 10px 15px;
+    padding: 10px 18px;
     margin: 5px;
-    background: #6a9c89;
-    color: white;
-    border: none;
     border-radius: 6px;
+    border: none;
     cursor: pointer;
+    background: #5c7cfa;
+    color: white;
+    font-weight: bold;
 }
 
 button:hover {
-    background: #588a76;
+    background: #4c6ef5;
 }
 
 /* KARTA BLOCK */
 .karta-block {
-    background: #ffffff;
-    margin: 20px;
+    margin: 20px auto;
+    width: 95%;
+    background: white;
+    border-radius: 12px;
     padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
 
 .karta-title {
     font-size: 18px;
     font-weight: bold;
-    color: #2f4f4f;
-    border-bottom: 2px solid #6a9c89;
-    padding-bottom: 5px;
+    color: #34495e;
+    border-left: 5px solid #5c7cfa;
+    padding-left: 10px;
     margin-bottom: 10px;
 }
 
@@ -83,21 +94,27 @@ table {
     border-collapse: collapse;
 }
 
-td, th {
+th {
+    background: #5c7cfa;
+    color: white;
+    padding: 8px;
+}
+
+td {
     border: 1px solid #ddd;
     padding: 8px;
     text-align: center;
 }
 
-th {
-    background: #6a9c89;
-    color: white;
+tr:nth-child(even) {
+    background: #f8f9fa;
 }
 
+/* STATUS */
 #status {
     text-align: center;
     font-weight: bold;
-    margin-top: 10px;
+    margin: 10px;
 }
 
 </style>
@@ -106,15 +123,12 @@ th {
 
 <body>
 
-<!-- HEADER -->
 <div class="header">
-    <!-- Replace this logo URL if you have official one -->
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Om_symbol.svg/120px-Om_symbol.svg.png" id="logo">
+    <img src="https://rssb.org/images/RSSBbox.jpg">
     <h1>Radha Soami Satsang Beas</h1>
-    <h3>Satsang Planner</h3>
+    <p>Satsang Monthly Planner</p>
 </div>
 
-<!-- CONTROLS -->
 <div class="controls">
 Month: <input type="number" id="month" value="5">
 Year: <input type="number" id="year" value="2026">
@@ -163,7 +177,7 @@ async function generate() {
     let kartaMap = {};
 
     kartaData.forEach(row => {
-        let name = (row.Karta_Name || "").trim();
+        let name = row.Karta_Name?.trim();
 
         if (!kartaMap[name]) kartaMap[name] = [];
 
@@ -171,7 +185,8 @@ async function generate() {
             shabad: row.Shabad || "",
             guru: row.Guru || "",
             book: row.Book || "",
-            page: row.Page || ""
+            page: row.Page || "",
+            mobile: row.Mobile || ""
         });
     });
 
@@ -208,13 +223,13 @@ async function generate() {
                 shabad: bani.shabad,
                 guru: bani.guru,
                 book: bani.book,
-                page: bani.page
+                page: bani.page,
+                mobile: bani.mobile
             });
         }
 
     });
 
-    // DISPLAY
     for (let karta in schedule) {
 
         let block = document.createElement("div");
@@ -226,6 +241,7 @@ async function generate() {
         <tr>
         <th>Date</th>
         <th>Center</th>
+        <th>Mobile</th>
         <th>Shabad</th>
         <th>Guru</th>
         <th>Book</th>
@@ -236,6 +252,7 @@ async function generate() {
             table += `<tr>
             <td>${row.date}</td>
             <td>${row.center}</td>
+            <td>${row.mobile}</td>
             <td>${row.shabad}</td>
             <td>${row.guru}</td>
             <td>${row.book}</td>
@@ -253,11 +270,45 @@ async function generate() {
 }
 
 function downloadExcel() {
-    let html = document.getElementById("output").innerHTML;
 
-    let blob = new Blob([html], {
-        type: "application/vnd.ms-excel"
+    let html = `
+    <table border="1">
+    <tr style="background:#5c7cfa;color:white;">
+    <th>Karta</th>
+    <th>Date</th>
+    <th>Center</th>
+    <th>Mobile</th>
+    <th>Shabad</th>
+    <th>Guru</th>
+    <th>Book</th>
+    <th>Page</th>
+    </tr>`;
+
+    document.querySelectorAll(".karta-block").forEach(block => {
+
+        let karta = block.querySelector(".karta-title").innerText;
+
+        block.querySelectorAll("tbody tr").forEach(row => {
+
+            let cells = row.querySelectorAll("td");
+
+            html += `<tr>
+            <td>${karta}</td>
+            <td>${cells[0].innerText}</td>
+            <td>${cells[1].innerText}</td>
+            <td>${cells[2].innerText}</td>
+            <td>${cells[3].innerText}</td>
+            <td>${cells[4].innerText}</td>
+            <td>${cells[5].innerText}</td>
+            <td>${cells[6].innerText}</td>
+            </tr>`;
+        });
+
     });
+
+    html += "</table>";
+
+    let blob = new Blob([html], { type: "application/vnd.ms-excel" });
 
     let link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
