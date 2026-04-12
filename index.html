@@ -36,7 +36,11 @@ Year: <input type="number" id="year" value="2026">
 <th>Time</th>
 <th>Center</th>
 <th>Karta</th>
+<th>Mobile</th>
 <th>Shabad</th>
+<th>Guru</th>
+<th>Book</th>
+<th>Page</th>
 </tr>
 </thead>
 <tbody></tbody>
@@ -66,9 +70,7 @@ function getSundays(month, year) {
         d.setDate(d.getDate() + 1);
     }
 
-    // Remove 4th Sunday
-    if (dates.length >= 4) dates.splice(3,1);
-
+    if (dates.length >= 4) dates.splice(3,1); // skip 4th Sunday
     return dates;
 }
 
@@ -79,11 +81,8 @@ async function generate() {
     let kartaData = await fetchData("KARTA_BANI");
     let centerData = await fetchData("CENTERS");
 
-    console.log("KARTA DATA:", kartaData);
-    console.log("CENTER DATA:", centerData);
-
     if (!kartaData.length || !centerData.length) {
-        document.getElementById("status").innerText = "❌ Data not found. Check sheet names.";
+        document.getElementById("status").innerText = "❌ Data not found";
         return;
     }
 
@@ -92,19 +91,23 @@ async function generate() {
 
     let kartaMap = {};
 
-    // Clean + map data
+    // Build full karta-bani structure
     kartaData.forEach(row => {
 
         let name = (row.Karta_Name || "").trim();
-        let shabad = (row.Shabad || "").trim();
-
-        if (!name || !shabad) return;
+        if (!name) return;
 
         if (!kartaMap[name]) {
             kartaMap[name] = [];
         }
 
-        kartaMap[name].push(shabad);
+        kartaMap[name].push({
+            shabad: (row.Shabad || "").trim(),
+            mobile: (row.Mobile || "").trim(),
+            guru: (row.Guru || "").trim(),
+            book: (row.Book || "").trim(),
+            page: (row.Page || "").trim()
+        });
     });
 
     let kartas = Object.keys(kartaMap);
@@ -113,11 +116,8 @@ async function generate() {
         .map(c => (c.Center_Name || "").trim())
         .filter(c => c !== "");
 
-    console.log("Kartas:", kartas);
-    console.log("Centers:", centers);
-
     if (kartas.length === 0 || centers.length === 0) {
-        document.getElementById("status").innerText = "❌ Data format issue in sheet";
+        document.getElementById("status").innerText = "❌ Data format issue";
         return;
     }
 
@@ -131,8 +131,6 @@ async function generate() {
         let karta = kartas[i % kartas.length];
         let baniList = kartaMap[karta];
 
-        if (!baniList || baniList.length === 0) return;
-
         let bani = baniList[Math.floor(Math.random() * baniList.length)];
         let center = centers[Math.floor(Math.random() * centers.length)];
 
@@ -142,21 +140,20 @@ async function generate() {
         <td>9:30 AM</td>
         <td>${center}</td>
         <td>${karta}</td>
-        <td>${bani}</td>
+        <td>${bani.mobile}</td>
+        <td>${bani.shabad}</td>
+        <td>${bani.guru}</td>
+        <td>${bani.book}</td>
+        <td>${bani.page}</td>
         </tr>`;
 
         tbody.innerHTML += row;
     });
 
-    if (tbody.innerHTML === "") {
-        document.getElementById("status").innerText = "⚠️ Data loaded but no rows generated (check column names)";
-    } else {
-        document.getElementById("status").innerText = "✅ Schedule Generated";
-    }
+    document.getElementById("status").innerText = "✅ Schedule Generated";
 }
 
 function downloadExcel() {
-
     let table = document.getElementById("table").outerHTML;
 
     let blob = new Blob([table], {
