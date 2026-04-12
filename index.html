@@ -19,24 +19,11 @@ button {
     border-radius: 5px;
 }
 
-.karta-block {
-    background: white;
-    margin: 15px 0;
-    padding: 10px;
-    border-radius: 8px;
-}
-
-.karta-title {
-    background: #4CAF50;
-    color: white;
-    padding: 8px;
-    font-weight: bold;
-}
-
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
+    margin-top: 15px;
+    background: white;
 }
 
 td, th {
@@ -45,7 +32,7 @@ td, th {
     text-align: center;
 }
 
-th { background: #ddd; }
+th { background: #4CAF50; color: white; }
 
 #status { text-align: center; font-weight: bold; }
 </style>
@@ -64,7 +51,22 @@ Year: <input type="number" id="year" value="2026">
 </div>
 
 <p id="status"></p>
-<div id="output"></div>
+
+<table id="table">
+<thead>
+<tr>
+<th>S.No</th>
+<th>Date</th>
+<th>Center</th>
+<th>Karta</th>
+<th>Shabad</th>
+<th>Guru</th>
+<th>Book</th>
+<th>Page</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
 
 <script>
 
@@ -96,21 +98,19 @@ async function generate() {
     let kartaData = await fetchData("KARTA_BANI");
     let centerData = await fetchData("CENTERS");
 
-    let output = document.getElementById("output");
-    output.innerHTML = "";
+    let tbody = document.querySelector("#table tbody");
+    tbody.innerHTML = "";
 
     let kartaMap = {};
 
-    // Build karta data
     kartaData.forEach(row => {
-        let name = (row.Karta_Name || "").trim();
+        let name = row.Karta_Name?.trim();
         if (!name) return;
 
         if (!kartaMap[name]) kartaMap[name] = [];
 
         kartaMap[name].push({
             shabad: row.Shabad || "",
-            mobile: row.Mobile || "",
             guru: row.Guru || "",
             book: row.Book || "",
             page: row.Page || ""
@@ -125,93 +125,52 @@ async function generate() {
         document.getElementById("year").value
     );
 
-    let schedule = {};
+    let rowCount = 1;
 
     sundays.forEach(date => {
 
-        // shuffle kartas
         let shuffledKartas = [...kartas].sort(() => 0.5 - Math.random());
 
-        // assign one karta per center (no repeat per day)
-        let dayAssignments = [];
+        centers.forEach((center, i) => {
 
-        for (let i = 0; i < centers.length; i++) {
+            let karta = shuffledKartas[i];
 
-            let karta = shuffledKartas[i % shuffledKartas.length];
+            let bani = null;
 
-            // prevent same karta twice same day
-            if (dayAssignments.includes(karta)) {
-                let alt = shuffledKartas.find(k => !dayAssignments.includes(k));
-                if (alt) karta = alt;
+            if (karta) {
+                let list = kartaMap[karta];
+                bani = list[Math.floor(Math.random() * list.length)];
             }
 
-            dayAssignments.push(karta);
+            let row = `<tr>
+            <td>${rowCount++}</td>
+            <td>${date.toLocaleDateString()}</td>
+            <td>${center}</td>
+            <td>${karta || "—"}</td>
+            <td>${bani ? bani.shabad : "—"}</td>
+            <td>${bani ? bani.guru : "—"}</td>
+            <td>${bani ? bani.book : "—"}</td>
+            <td>${bani ? bani.page : "—"}</td>
+            </tr>`;
 
-            let baniList = kartaMap[karta];
-            let bani = baniList[Math.floor(Math.random() * baniList.length)];
-
-            if (!schedule[karta]) schedule[karta] = [];
-
-            schedule[karta].push({
-                date: date.toLocaleDateString(),
-                center: centers[i],
-                shabad: bani.shabad || "",
-                guru: bani.guru || "",
-                book: bani.book || "",
-                page: bani.page || ""
-            });
-        }
+            tbody.innerHTML += row;
+        });
 
     });
 
-    // Display grouped
-    for (let karta in schedule) {
-
-        let block = document.createElement("div");
-        block.className = "karta-block";
-
-        let title = `<div class="karta-title">${karta}</div>`;
-
-        let table = `<table>
-        <tr>
-        <th>Date</th>
-        <th>Center</th>
-        <th>Shabad</th>
-        <th>Guru</th>
-        <th>Book</th>
-        <th>Page</th>
-        </tr>`;
-
-        schedule[karta].forEach(row => {
-            table += `<tr>
-            <td>${row.date}</td>
-            <td>${row.center}</td>
-            <td>${row.shabad}</td>
-            <td>${row.guru}</td>
-            <td>${row.book}</td>
-            <td>${row.page}</td>
-            </tr>`;
-        });
-
-        table += "</table>";
-
-        block.innerHTML = title + table;
-        output.appendChild(block);
-    }
-
-    document.getElementById("status").innerText = "✅ Clean Schedule Generated";
+    document.getElementById("status").innerText = "✅ Schedule Generated (Remaining centers empty)";
 }
 
 function downloadExcel() {
-    let html = document.getElementById("output").innerHTML;
+    let table = document.getElementById("table").outerHTML;
 
-    let blob = new Blob([html], {
+    let blob = new Blob([table], {
         type: "application/vnd.ms-excel"
     });
 
     let link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "Satsang_Grouped.xls";
+    link.download = "Satsang_Planner.xls";
     link.click();
 }
 
