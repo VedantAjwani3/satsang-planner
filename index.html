@@ -7,66 +7,71 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
-body { font-family: 'Segoe UI'; margin:0; background:#f4f7f6; }
+body { font-family:'Segoe UI'; margin:0; background:#eef2f7; }
 
-.header { text-align:center; padding:20px; background:white; box-shadow:0 2px 10px rgba(0,0,0,0.1);}
-.header img { height:70px; }
+.header {
+    background:#1e3a8a;
+    color:white;
+    text-align:center;
+    padding:15px;
+}
+
+.header img { height:60px; }
 
 .controls {
     margin:20px auto;
     width:90%;
-    max-width:600px;
+    max-width:650px;
     background:white;
     padding:20px;
-    border-radius:12px;
+    border-radius:10px;
     text-align:center;
-    box-shadow:0 3px 12px rgba(0,0,0,0.08);
+    box-shadow:0 3px 10px rgba(0,0,0,0.1);
 }
 
 button {
-    padding:10px 18px;
+    padding:10px 15px;
     margin:5px;
-    border-radius:6px;
     border:none;
-    cursor:pointer;
-    background:#5c7cfa;
+    border-radius:5px;
+    background:#2563eb;
     color:white;
-    font-weight:bold;
+    cursor:pointer;
 }
 
 .karta-block {
     margin:20px auto;
     width:95%;
     background:white;
-    border-radius:12px;
     padding:15px;
-    box-shadow:0 4px 15px rgba(0,0,0,0.08);
+    border-radius:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
 }
 
 .karta-title {
-    font-size:18px;
     font-weight:bold;
-    border-left:5px solid #5c7cfa;
+    font-size:18px;
+    border-left:4px solid #2563eb;
     padding-left:10px;
 }
 
-.mobile { font-size:13px; color:#666; }
+.mobile { font-size:13px; color:#555; }
 
 table { width:100%; border-collapse:collapse; margin-top:10px;}
-th { background:#5c7cfa; color:white; padding:8px;}
+th { background:#2563eb; color:white; padding:8px;}
 td { border:1px solid #ddd; padding:8px; text-align:center;}
-tr:nth-child(even){background:#f9f9f9;}
+tr:nth-child(even){background:#f8fafc;}
 
-#status { text-align:center; font-weight:bold; margin:10px; }
+#status { text-align:center; font-weight:bold; margin:10px;}
 </style>
 </head>
 
 <body>
 
 <div class="header">
-    <img src="https://rssb.org/images/RSSBbox.jpg">
-    <h2>Radha Soami Satsang Beas</h2>
-    <p>Satsang Monthly Planner</p>
+<img src="https://rssb.org/images/RSSBbox.jpg">
+<h2>Radha Soami Satsang Beas</h2>
+<p>Satsang Planner</p>
 </div>
 
 <div class="controls">
@@ -84,6 +89,7 @@ Year: <input type="number" id="year" value="2026">
 <script>
 
 const SHEET_ID = "1EB9C_6xWe_QXzoDR8XT2JSODPafO0bQSR7PFmjv30i4";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTUGRary61n-11mvv2KLx_-Aq4UM5aZQ2zjHaC_h5yD9tOqusV3w-v9s5Hf-Fy70zSuA/exec";
 
 async function fetchData(sheet){
     let res = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/${sheet}`);
@@ -91,7 +97,7 @@ async function fetchData(sheet){
 }
 
 function getSundays(month, year){
-    let d=new Date(year,month-1,1), dates=[];
+    let d=new Date(year,month-1,1),dates=[];
     while(d.getMonth()==month-1){
         if(d.getDay()==0) dates.push(new Date(d));
         d.setDate(d.getDate()+1);
@@ -113,7 +119,7 @@ output.innerHTML="";
 
 let kartaMap={}, historyCenter={}, historyBani={};
 
-// Build karta map
+// KARTA DATA
 kartaData.forEach(r=>{
     let k=r.Karta_Name?.trim();
     if(!kartaMap[k]) kartaMap[k]=[];
@@ -126,7 +132,7 @@ kartaData.forEach(r=>{
     });
 });
 
-// Build history
+// HISTORY
 historyData.forEach(r=>{
     let k=r.Karta_Name,c=r.Center_Name,s=r.Shabad;
 
@@ -139,123 +145,149 @@ historyData.forEach(r=>{
 
 let kartas=Object.keys(kartaMap);
 let centers=centerData.map(c=>c.Center_Name).filter(Boolean);
+
 let sundays=getSundays(
-    document.getElementById("month").value,
-    document.getElementById("year").value
+document.getElementById("month").value,
+document.getElementById("year").value
 );
 
 let schedule={};
 
 sundays.forEach(date=>{
 
-    let availableCenters=[...centers];
-    let shuffledKartas=[...kartas].sort(()=>0.5-Math.random());
+let availableCenters=[...centers];
+let shuffledKartas=[...kartas].sort(()=>0.5-Math.random());
 
-    shuffledKartas.forEach(karta=>{
+shuffledKartas.forEach(karta=>{
 
-        if(availableCenters.length==0) return;
+if(availableCenters.length==0) return;
 
-        // CENTER (SMART)
-        let center=availableCenters.sort((a,b)=>{
-            return (historyCenter[karta]?.[a]||0)-(historyCenter[karta]?.[b]||0);
-        })[0];
+if(!schedule[karta]) schedule[karta]=[];
 
-        availableCenters=availableCenters.filter(c=>c!==center);
+let usedCenters=schedule[karta].map(x=>x.center);
+let usedBanis=schedule[karta].map(x=>x.shabad);
 
-        // BANI (SMART CYCLE)
-        if(!schedule[karta]) schedule[karta]=[];
+// CENTER FIX
+let filteredCenters=availableCenters.filter(c=>!usedCenters.includes(c));
+if(filteredCenters.length==0) filteredCenters=[...availableCenters];
 
-        let used=schedule[karta].map(x=>x.shabad);
-        let baniList=kartaMap[karta];
+let center=filteredCenters.sort((a,b)=>{
+return (historyCenter[karta]?.[a]||0)-(historyCenter[karta]?.[b]||0);
+})[0];
 
-        let unused=baniList.filter(b=>!used.includes(b.shabad));
+availableCenters=availableCenters.filter(c=>c!==center);
 
-        let bani;
+// BANI FIX
+let baniList=kartaMap[karta];
+let unused=baniList.filter(b=>!usedBanis.includes(b.shabad));
 
-        if(unused.length>0){
-            unused.sort((a,b)=>{
-                return (historyBani[karta]?.[a.shabad]||0)-(historyBani[karta]?.[b.shabad]||0);
-            });
-            bani=unused[0];
-        }else{
-            bani=baniList.sort((a,b)=>{
-                return (historyBani[karta]?.[a.shabad]||0)-(historyBani[karta]?.[b.shabad]||0);
-            })[0];
-        }
+let bani;
 
-        schedule[karta].push({
-            date:date.toLocaleDateString(),
-            center,
-            ...bani
-        });
+if(unused.length>0){
+unused.sort((a,b)=>{
+return (historyBani[karta]?.[a.shabad]||0)-(historyBani[karta]?.[b.shabad]||0);
+});
+bani=unused[0];
+}else{
+bani=baniList.sort((a,b)=>{
+return (historyBani[karta]?.[a.shabad]||0)-(historyBani[karta]?.[b.shabad]||0);
+})[0];
+}
 
-    });
+// SAVE
+schedule[karta].push({
+date:date.toLocaleDateString(),
+center,
+...bani
+});
+
+});
 
 });
 
 // DISPLAY
 for(let k in schedule){
 
-    let mobile=schedule[k][0].mobile||"";
+let mobile=schedule[k][0].mobile||"";
 
-    let block=document.createElement("div");
-    block.className="karta-block";
+let block=document.createElement("div");
+block.className="karta-block";
 
-    let html=`<div class="karta-title">${k}<div class="mobile">📞 ${mobile}</div></div>
-    <table>
-    <tr><th>Date</th><th>Center</th><th>Shabad</th><th>Guru</th><th>Book</th><th>Page</th></tr>`;
+let html=`<div class="karta-title">${k}<div class="mobile">📞 ${mobile}</div></div>
+<table>
+<tr><th>Date</th><th>Center</th><th>Shabad</th><th>Guru</th><th>Book</th><th>Page</th></tr>`;
 
-    schedule[k].forEach(r=>{
-        html+=`<tr>
-        <td>${r.date}</td>
-        <td>${r.center}</td>
-        <td>${r.shabad}</td>
-        <td>${r.guru}</td>
-        <td>${r.book}</td>
-        <td>${r.page}</td>
-        </tr>`;
-    });
+schedule[k].forEach(r=>{
+html+=`<tr>
+<td>${r.date}</td>
+<td>${r.center}</td>
+<td>${r.shabad}</td>
+<td>${r.guru}</td>
+<td>${r.book}</td>
+<td>${r.page}</td>
+</tr>`;
+});
 
-    html+="</table>";
-    block.innerHTML=html;
-    output.appendChild(block);
+html+="</table>";
+block.innerHTML=html;
+output.appendChild(block);
 }
 
-document.getElementById("status").innerText="✅ Smart Schedule Generated";
+// AUTO SAVE TO HISTORY
+let saveData=[];
+for(let k in schedule){
+schedule[k].forEach(r=>{
+saveData.push({
+date:r.date,
+karta:k,
+shabad:r.shabad,
+center:r.center
+});
+});
+}
+
+fetch(SCRIPT_URL,{
+method:"POST",
+body:JSON.stringify(saveData)
+})
+.then(()=>console.log("Saved to history"))
+.catch(err=>console.log(err));
+
+document.getElementById("status").innerText="✅ Schedule Generated & Saved";
 
 }
 
 // PDF
 function downloadPDF(){
-    html2pdf().from(document.getElementById("output")).save("Satsang.pdf");
+html2pdf().from(document.getElementById("output")).save("Satsang.pdf");
 }
 
 // Excel
 function downloadExcel(){
 
 let html=`<table border="1">
-<tr style="background:#5c7cfa;color:white;">
+<tr style="background:#2563eb;color:white;">
 <th>Karta</th><th>Date</th><th>Center</th><th>Shabad</th><th>Guru</th><th>Book</th><th>Page</th>
 </tr>`;
 
 document.querySelectorAll(".karta-block").forEach(b=>{
-    let k=b.querySelector(".karta-title").innerText;
+let k=b.querySelector(".karta-title").innerText;
 
-    b.querySelectorAll("tr").forEach((r,i)=>{
-        if(i==0) return;
-        let c=r.querySelectorAll("td");
-        if(c.length==0) return;
+b.querySelectorAll("tr").forEach((r,i)=>{
+if(i==0) return;
+let c=r.querySelectorAll("td");
+if(c.length==0) return;
 
-        html+=`<tr>
-        <td>${k}</td>
-        <td>${c[0].innerText}</td>
-        <td>${c[1].innerText}</td>
-        <td>${c[2].innerText}</td>
-        <td>${c[3].innerText}</td>
-        <td>${c[4].innerText}</td>
-        <td>${c[5].innerText}</td>
-        </tr>`;
-    });
+html+=`<tr>
+<td>${k}</td>
+<td>${c[0].innerText}</td>
+<td>${c[1].innerText}</td>
+<td>${c[2].innerText}</td>
+<td>${c[3].innerText}</td>
+<td>${c[4].innerText}</td>
+<td>${c[5].innerText}</td>
+</tr>`;
+});
 });
 
 html+="</table>";
